@@ -25,10 +25,13 @@ exports.handler = async (event) => {
 	    }
 	    var response = {
 		    'statusCode': 200,
-            'headers': { 'Content-Type': 'application/json' },
 		    'body': JSON.stringify({
 			    message: msg
-		    })
+		    }),
+            'headers': {
+		    	'Content-Type': 'application/json',
+		    	'Access-Control-Allow-Origin': '*'
+		    }
 	    };
     } catch (err) {
 	    console.log(err);
