@@ -32,6 +32,14 @@ resource "aws_iam_role_policy" "lambda_iam_policy" {
             "Effect": "Allow",
             "Action": "ses:SendEmail",
             "Resource": "*"
+        },
+        {
+            "Effect": "Allow",
+            "Action": [
+                "dynamodb:PutItem",
+                "dynamodb:UpdateItem"
+            ],
+            "Resource": "${aws_dynamodb_table.default.arn}"
         }
     ]
 }

@@ -1,25 +1,41 @@
 const AWS = require('aws-sdk');
 const SES = new AWS.SES();
+const DDB = new AWS.DynamoDB({apiVersion: '2012-08-10'});
+const { getPublicKeys, decodeVerifyJwt } = require('/opt/layer/decode-verify-jwt');
 
 const successResponse = {
     "isBase64Encoded": false,
     "headers": { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     "statusCode": 200,
-    "body": "{\"result\": \"Success.\"}"
+    "body": "{\"result\": \"Success\"}"
 };
 
 const errorResponse = {
     "isBase64Encoded": false,
     "headers": { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' },
     "statusCode": 200,
-    "body": "{\"result\": \"Failed.\"}"
+    "body": "{\"result\": \"Failed\"}"
 };
 
+const DDB_TABLE = 'pagenow-invitation-email-table';
+
+let cacheKeys;
+
 exports.handler = async function(event) {
-    // console.log(event);
+    let userId;
+    try {
+        if (!cacheKeys) {
+            cacheKeys = await getPublicKeys();
+        }
+        const decodedJwt = await decodeVerifyJwt(event.headers.Authorization, cacheKeys);
+        if (!decodedJwt || !decodedJwt.isValid || decodedJwt.username === '') {
+            return errorResponse;
+        }
+        userId = decodedJwt.username;
+    } catch (error) {
+        return errorResponse;
+    }
     const body = JSON.parse(event.body);
-    // const body = event.body;
-    console.log(body);
 
     const senderFirstName = body.senderFirstName;
     const senderLastName = body.senderLastName;
@@ -67,10 +83,24 @@ exports.handler = async function(event) {
         Message: message,
         Source: 'PageNow <support@pagenow.io>'
     };
-    console.log(emailParams);
-    
+    const timestamp = new Date();
+
     try {
         await SES.sendEmail(emailParams).promise();
+        await DDB.putItem({
+            TableName: DDB_TABLE,
+            Item: {
+                user_id: {
+                    S: userId
+                },
+                recipient_email: {
+                    S: recipientEmail
+                },
+                timestamp: {
+                    S: timestamp.toISOString()
+                }
+            }
+        }).promise();
     } catch (err) {
         console.error(err, err.stack);
         return errorResponse;

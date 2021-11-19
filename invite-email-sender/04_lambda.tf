@@ -1,3 +1,10 @@
+resource "aws_lambda_layer_version" "lambda_layer" {
+    filename   = "lambda_layer_payload.zip"
+    layer_name = "invite_email_sender_lambda_layer"
+
+    compatible_runtimes = ["nodejs12.x"]
+}
+
 resource "aws_lambda_function" "send_email" {
     filename      = var.lambda_zip_name
     function_name = "${var.function_name}"
@@ -10,6 +17,8 @@ resource "aws_lambda_function" "send_email" {
     source_code_hash = "${filebase64sha256(var.lambda_zip_name)}"
 
     runtime = "nodejs12.x"
+
+    layers  = [aws_lambda_layer_version.lambda_layer.arn]
 
     environment {
         variables = {
